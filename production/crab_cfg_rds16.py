@@ -75,7 +75,8 @@ def make_config(name, pilot, tag):
     c.Data.splitting     = 'FileBased'
     c.Data.unitsPerJob   = files_per_job
     c.Data.totalUnits    = pilot_files if pilot else -1
-    c.Data.publication   = False
+    c.Data.publication   = True                      # publish to DBS phys03 (Ric, 9 Nov 2026)
+    c.Data.outputDatasetTag = 'rds16_%s' % tag
     c.Data.outLFNDirBase = '/store/user/manzoni/RDs/%s_rds16' % tag
     if not is_mc:
         c.Data.lumiMask = GOLDEN
