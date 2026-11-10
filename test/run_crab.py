@@ -1,5 +1,6 @@
 # RDsNano config, used both locally and on CRAB (rds16, CMSSW_16_X).
 #   cmsRun run_crab.py isMC=False globalTag=106X_dataRun2_v35 inputFiles=file:a.root maxEvents=500 outputFile=rds_nano.root
+#   MC options (default True, see README_corrections.md): calibCovBeforeFit=True|False dxyMorph=True|False
 # On CRAB: pyCfgParams = ['isMC=...', 'globalTag=...'] (CRAB sets the input files itself).
 from FWCore.ParameterSet.VarParsing import VarParsing
 import FWCore.ParameterSet.Config as cms
@@ -11,6 +12,9 @@ options.register('maxEvents',  -1,              VarParsing.multiplicity.singleto
 options.register('inputFiles', '',              VarParsing.multiplicity.list,      VarParsing.varType.string, 'input files')
 options.register('outputFile', 'rds_nano.root', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'output NanoAOD file')
 options.register('reportEvery', 5000,           VarParsing.multiplicity.singleton, VarParsing.varType.int,    'FwkReport frequency')
+# MC covariance options (no effect on data), see README_corrections.md
+options.register('calibCovBeforeFit', True,     VarParsing.multiplicity.singleton, VarParsing.varType.bool,   'MC: q/p covariance scaled by 1/f before the vertex fits')
+options.register('dxyMorph',   True,            VarParsing.multiplicity.singleton, VarParsing.varType.bool,   'MC: muon sigma_dxy quantile morph before the fits')
 options.parseArguments()
 
 if not options.globalTag:
@@ -105,6 +109,8 @@ from PhysicsTools.RDsNano.nanoRDs_cff import *
 process = nanoAOD_customizeStart(process)
 process = nanoAOD_customizeMuonTriggerBPark(process)  
 process = nanoAOD_customizeBsToDsPhiKKPiMu(process) #comment this out to run only Trigger.cc for debugging
+process.BsToDsPhiKKPiMu.calibCovBeforeFit = options.calibCovBeforeFit
+process.BsToDsPhiKKPiMu.applyDxyMorph     = options.dxyMorph
 
 ## put the refit process somewhere in the beginning before all the EDAnalyzer
 process.primaryVertexRefit = process.unsortedOfflinePrimaryVertices.clone()

@@ -264,6 +264,9 @@ private:
   // muon sigma_dxy quantile morph (MC only, as Bmmm --cov-scale <morph.json> --cov-scale-muon-only); empty file: off
   const std::string dxyMorphFile_;
   const std::string dxyMorphName_;
+  // MC options, see README_corrections.md: both are interim, partial treatments of the track covariance
+  const bool calibCovBeforeFit_;   // q/p row/column of the covariance scaled by 1/f before the vertex fits
+  const bool applyDxyMorph_;       // muon sigma_dxy quantile morph applied before the fits
   std::unique_ptr<correction::CorrectionSet> dxyMorphSet_;
   const correction::Correction* dxyMorph_ = nullptr;
 
@@ -349,6 +352,8 @@ BsToDsPhiKKPiMuBuilder::BsToDsPhiKKPiMuBuilder(const edm::ParameterSet& iConfig)
     trkCalibFile_       (iConfig.getParameter<std::string>("trkCalibFile"       )),
     dxyMorphFile_       (iConfig.getParameter<std::string>("dxyMorphFile"       )),
     dxyMorphName_       (iConfig.getParameter<std::string>("dxyMorphName"       )),
+    calibCovBeforeFit_  (iConfig.getParameter<bool>       ("calibCovBeforeFit"  )),
+    applyDxyMorph_      (iConfig.getParameter<bool>       ("applyDxyMorph"      )),
     ttBuilderToken_(esConsumes<TransientTrackBuilder, TransientTrackRecord>(edm::ESInputTag("", "TransientTrackBuilder")))
    {
     //for the track scale correction
@@ -356,7 +361,11 @@ BsToDsPhiKKPiMuBuilder::BsToDsPhiKKPiMuBuilder(const edm::ParameterSet& iConfig)
     trkCalib = std::make_unique<const rdscalib::TrackCalib>(calibPath);
     muCalib  = std::make_unique<const rdscalib::TrackCalib>(calibPath);
 
-    if (!dxyMorphFile_.empty()) {
+    if (applyDxyMorph_ && dxyMorphFile_.empty())
+      throw cms::Exception("Configuration") << "applyDxyMorph = True needs dxyMorphFile";
+    edm::LogPrint("BsToDsPhiKKPiMuBuilder") << "#### MC covariance options (README_corrections.md): calibCovBeforeFit="
+                                            << calibCovBeforeFit_ << " applyDxyMorph=" << applyDxyMorph_;
+    if (applyDxyMorph_) {
       dxyMorphSet_ = correction::CorrectionSet::from_file(edm::FileInPath(dxyMorphFile_).fullPath());
       dxyMorph_    = dxyMorphSet_->at(dxyMorphName_).get();
     }
@@ -815,9 +824,12 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         // The calibration scales the momentum by f (MC): q/p -> (q/p)/f. Its uncertainty scales with it,
         // i.e. the q/p row and column of the covariance by 1/f (D C D, D = diag(1/f,1,1,1,1)), so that the
         // relative momentum resolution of the track is unchanged, as Bmmm TrackRecord.fit_track.
-        // f <= 0: no calibration (data).
-        auto calibCov = [](reco::TrackBase::CovarianceMatrix c, double f) {
-          if (f > 0 && f != 1.) {
+        // Only the q/p row/column: the dxy, dsz variances are untouched. f <= 0: no calibration (data).
+        // OPTIONAL (calibCovBeforeFit, default True): with False the fits get the original covariance, as in
+        // the RDsNano code before the rds16 port. The mass errors below always use the 1/f-scaled covariance,
+        // applied exactly once, whatever the option. See README_corrections.md.
+        auto calibCov = [this](reco::TrackBase::CovarianceMatrix c, double f) {
+          if (calibCovBeforeFit_ && f > 0 && f != 1.) {
             for (int i = 1; i < 5; ++i) c(0, i) /= f;   // symmetric storage: (0,i) == (i,0)
             c(0, 0) /= f * f;
           }
@@ -861,7 +873,7 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         //////////////////////////////////////////////////////////////////////////
         const reco::Track muTrackNoMorph = muTrackCorr;
         float muCovScaleDxy = 1.0;
-        if (dxyMorph_ && !iEvent.isRealData()) {
+        if (applyDxyMorph_ && dxyMorph_ && !iEvent.isRealData()) {
           const reco::Track& rawMu = *muPtr->bestTrack();
           const double zMu = rawMu.vz();
           const reco::TrackBase::Point bsAtZ(beamSpot.x(zMu), beamSpot.y(zMu), beamSpot.z0());
@@ -1046,9 +1058,13 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         ///////////////////////////////////////////////////
 
 
-        std::array<std::array<double, 3>, 3> covK1 = scaleAndCalibrateCovMat(&newTrackK1, a2, c2 ,f_k1);
-        std::array<std::array<double, 3>, 3> covK2 = scaleAndCalibrateCovMat(&newTrackK2, a2, c2 ,f_k2);
-        std::array<std::array<double, 3>, 3> covPi = scaleAndCalibrateCovMat(&newTrackPi, a2, c2 ,f_pi);
+        // scaleAndCalibrateCovMat applies 1/f to the q/p row/column itself: pass f only if calibCov did not
+        // already do it (calibCovBeforeFit = False), otherwise the 1/f scaling is applied twice
+        // (bug until Nov 2026: q/p variance / f^4 instead of / f^2; |f-1| < 1% -> ds_custom_m_err off by <~1%).
+        auto fCustom = [this](double f) { return calibCovBeforeFit_ ? -1.0 : f; };
+        std::array<std::array<double, 3>, 3> covK1 = scaleAndCalibrateCovMat(&newTrackK1, a2, c2, fCustom(f_k1));
+        std::array<std::array<double, 3>, 3> covK2 = scaleAndCalibrateCovMat(&newTrackK2, a2, c2, fCustom(f_k2));
+        std::array<std::array<double, 3>, 3> covPi = scaleAndCalibrateCovMat(&newTrackPi, a2, c2, fCustom(f_pi));
 
         //stack tracks and covariance matrices
         std::vector<std::array<std::array<double, 3>, 3>> covs;
@@ -1971,7 +1987,9 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
           auto met = [&](const math::PtEtaPhiMLorentzVector& v, const edm::Ptr<pat::PackedCandidate>& c,
                          const reco::Track& t, double f) {
             const double scal = mc ? trkCalib->resolution(c->pt(), c->eta(), "nominal", rdscalib::Kind::Hadron) : NAN;
-            return bmmm::MassErrTrack{v.Px(), v.Py(), v.Pz(), v.M(), c->charge(), t.covariance(), 1., scal};  // covariance already scaled by 1/f (calibCov)
+            // 1/f exactly once: already in t.covariance() if calibCovBeforeFit, applied here otherwise
+            const double fm = (!calibCovBeforeFit_ && f > 0) ? f : 1.;
+            return bmmm::MassErrTrack{v.Px(), v.Py(), v.Pz(), v.M(), c->charge(), t.covariance(), fm, scal};
           };
           const auto mk1 = met(k1Vec, k1Ptr, k1TrackCorr, f_k1);
           const auto mk2 = met(k2Vec, k2Ptr, k2TrackCorr, f_k2);

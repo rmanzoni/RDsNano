@@ -40,7 +40,15 @@ BsToDsPhiKKPiMu = cms.EDProducer(
 'charge != 0',
 ])), # pre-selection of Gen hadrons (k1,k2 and pion), allow some tolerance w.r.t. hadSelection
    trkCalibFile = cms.string("PhysicsTools/RDsNano/data/rds_trkcalib_2018BParking_v4.json"),
-   # muon sigma_dxy quantile morph, MC only (Bmmm --cov-scale <morph> --cov-scale-muon-only); "" = off
+   # ---- MC track-covariance options: interim, partial corrections, READ README_corrections.md ----
+   # calibCovBeforeFit: scale the q/p row/column of each track covariance by 1/f (f = momentum calibration
+   #   factor) BEFORE the vertex fits (as Bmmm). False: the fits get the original covariance. The mass errors
+   #   use the 1/f-scaled covariance in both cases.
+   calibCovBeforeFit = cms.bool(True),
+   # applyDxyMorph: muon sigma_dxy quantile morph (MC -> data), applied to the muon covariance (dxy row/column)
+   #   BEFORE the fits and impact parameters (Bmmm --cov-scale <morph> --cov-scale-muon-only). The *_raw
+   #   branches keep the unmorphed muon IP errors; mu_cov_scale_dxy = 1 when off.
+   applyDxyMorph = cms.bool(True),
    dxyMorphFile = cms.string("PhysicsTools/RDsNano/data/sigma_dxy_morph_splot_fixed_muonid_fixed_decay_length.json"),
    dxyMorphName = cms.string("mu_bs_dxy_e_morph"),
 maxdRHadMuon     = cms.double( 1.2),       # max dR between hadron and muon
