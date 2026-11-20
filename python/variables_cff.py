@@ -112,6 +112,7 @@ prefitBasicVariables = cms.PSet(
         mu_m          = Var("userFloat('mu_m')",float),
         mu_charge     = Var("userFloat('mu_charge')",float),
         mu_pdgId      = Var("userInt('mu_pdgId')",int),
+        mu_highPurity = Var("userInt('mu_highPurity') == 1",bool,doc="track highPurity quality flag"),
         
         k1_px         = Var("userFloat('k1_px')",float),
         k1_py         = Var("userFloat('k1_py')",float),
@@ -122,6 +123,7 @@ prefitBasicVariables = cms.PSet(
         k1_m          = Var("userFloat('k1_m')",float),
         k1_charge     = Var("userFloat('k1_charge')",float),
         k1_pdgId      = Var("userInt('k1_pdgId')",int),
+        k1_highPurity = Var("userInt('k1_highPurity') == 1",bool,doc="track highPurity quality flag"),
         
         k2_px         = Var("userFloat('k2_px')",float),
         k2_py         = Var("userFloat('k2_py')",float),
@@ -132,6 +134,7 @@ prefitBasicVariables = cms.PSet(
         k2_m          = Var("userFloat('k2_m')",float),
         k2_charge     = Var("userFloat('k2_charge')",float),
         k2_pdgId      = Var("userInt('k2_pdgId')",int),
+        k2_highPurity = Var("userInt('k2_highPurity') == 1",bool,doc="track highPurity quality flag"),
         
         pi_px         = Var("userFloat('pi_px')",float),
         pi_py         = Var("userFloat('pi_py')",float),
@@ -142,6 +145,7 @@ prefitBasicVariables = cms.PSet(
         pi_m          = Var("userFloat('pi_m')",float),
         pi_charge     = Var("userFloat('pi_charge')",float),
         pi_pdgId      = Var("userInt('pi_pdgId')",int),
+        pi_highPurity = Var("userInt('pi_highPurity') == 1",bool,doc="track highPurity quality flag"),
 
         mu_cov_00     = Var("userFloat('mu_cov_00')",float),
         mu_cov_01     = Var("userFloat('mu_cov_01')",float),

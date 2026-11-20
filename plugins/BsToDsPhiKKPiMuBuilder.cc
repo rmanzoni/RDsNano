@@ -1389,6 +1389,8 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         bs.addUserFloat("mu_m"     , muVec.mass()   );
         bs.addUserFloat("mu_charge", muPtr->charge());
         bs.addUserInt  ("mu_pdgId" , muPtr->pdgId() );
+        // highPurity flag of the muon inner (tracker) track
+        bs.addUserInt  ("mu_highPurity", (muPtr->innerTrack().isNonnull() && muPtr->innerTrack()->quality(reco::TrackBase::highPurity)) ? 1 : 0);
         
         // Kaon 1
         bs.addUserFloat("k1_px"    , k1Vec.px()     );
@@ -1400,6 +1402,7 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         bs.addUserFloat("k1_m"     , k1Vec.mass()   );
         bs.addUserFloat("k1_charge", k1Ptr->charge());
         bs.addUserInt  ("k1_pdgId" , k1Ptr->pdgId() );
+        bs.addUserInt  ("k1_highPurity", k1Ptr->trackHighPurity() ? 1 : 0);
         
         // Kaon 2
         bs.addUserFloat("k2_px"    , k2Vec.px()     );
@@ -1411,6 +1414,7 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         bs.addUserFloat("k2_m"     , k2Vec.mass()   );
         bs.addUserFloat("k2_charge", k2Ptr->charge());
         bs.addUserInt  ("k2_pdgId" , k2Ptr->pdgId() );
+        bs.addUserInt  ("k2_highPurity", k2Ptr->trackHighPurity() ? 1 : 0);
         
         // Pion
         bs.addUserFloat("pi_px"    , piVec.px()     );
@@ -1422,6 +1426,7 @@ void BsToDsPhiKKPiMuBuilder::produce(edm::StreamID, edm::Event &iEvent, const ed
         bs.addUserFloat("pi_m"     , piVec.mass()   );
         bs.addUserFloat("pi_charge", piPtr->charge());
         bs.addUserInt  ("pi_pdgId" , piPtr->pdgId() );
+        bs.addUserInt  ("pi_highPurity", piPtr->trackHighPurity() ? 1 : 0);
 
         // track covariance matrix
         bs.addUserFloat("mu_cov_00", muTrackCorr.covariance(0,0));
