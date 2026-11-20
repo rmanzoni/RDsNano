@@ -5,6 +5,7 @@
   --samples qcd = all QCD MuEnrichedPt5 bins (qcd15To20, ..., qcd1000); data_all = all 2018 parking data (22 datasets)
   full production: --full --samples data_all,sig,sig_ext,hb,hb_ext,qcd
   python3 crab_cfg_rds16.py --full   [--dry] [--samples data,sig,hb]   # full production (only after Ric's OK)
+  --ignore-locality: jobs may run at any T1/T2, not only where the input is (input read via AAA)
 
 Global tags: PAT-step tag from edmProvDump of the first file of each sample (see LOG.md).
 Job size from the V8 timing with the final code (val/v8, 5000 ev; CPU/event data 0.030 s, signal/Hb 0.043 s,
@@ -53,7 +54,7 @@ for b in QCD_BINS:
     SAMPLES['qcd' + b] = ('/QCD_Pt-%s_MuEnrichedPt5_TuneCP5_13TeV-pythia8/RunIISummer20UL18MiniAODv2-106X_upgrade2018_realistic_v16_L1v1-v2/MINIAODSIM' % b,
                           True, '106X_upgrade2018_realistic_v16_L1v1', QCD_FILES_PER_JOB.get(b, 2), QCD_FILES_PER_JOB.get(b, 2))
 
-def make_config(name, pilot, tag):
+def make_config(name, pilot, tag, ignore_locality=False):
     dataset, is_mc, gt, files_per_job, pilot_files = SAMPLES[name]
     c = crab_config()
     c.General.requestName     = 'rds16_%s_%s%s' % (name, tag, '_pilot2' if pilot else '')
@@ -82,6 +83,9 @@ def make_config(name, pilot, tag):
         c.Data.lumiMask = GOLDEN
 
     c.Site.storageSite = 'T2_CH_CSCS'
+    if ignore_locality:                                  # run anywhere on T1/T2, read the input via AAA (Ric, 20 Nov 2026)
+        c.Data.ignoreLocality = True
+        c.Site.whitelist      = ['T1_*', 'T2_*']
     return c
 
 def submit(cfg, dry):
@@ -95,6 +99,7 @@ if __name__ == '__main__':
     g.add_argument('--full', action='store_true')
     p.add_argument('--samples', default='data,sig,hb')
     p.add_argument('--tag', default=datetime.date.today().strftime('%Y%m%d'), help='YYYYMMDD for outLFNDirBase / requestName')
+    p.add_argument('--ignore-locality', action='store_true', help='Data.ignoreLocality with Site.whitelist T1_*, T2_*')
     p.add_argument('--dry', action='store_true', help='crab submit --dryrun (no jobs)')
     a = p.parse_args()
     # one process per request: the CRAB API caches the CMSSW config inside a process
@@ -103,5 +108,5 @@ if __name__ == '__main__':
     for s in a.samples.split(','):
         names += ['qcd' + b for b in QCD_BINS] if s == 'qcd' else DATA_ALL if s == 'data_all' else [s]
     for s in names:
-        proc = Process(target=submit, args=(make_config(s, a.pilot, a.tag), a.dry))
+        proc = Process(target=submit, args=(make_config(s, a.pilot, a.tag, a.ignore_locality), a.dry))
         proc.start(); proc.join()
